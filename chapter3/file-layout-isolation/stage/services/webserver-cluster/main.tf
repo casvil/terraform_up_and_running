@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "4.54.0"
+    }
+  }
+}
+
 data "aws_vpc" "default" {
   default = true
 }
@@ -9,14 +18,6 @@ data "aws_subnets" "default" {
   }
 }
 
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "4.54.0"
-    }
-  }
-}
 
 provider "aws" {
   region = "us-east-2"
@@ -27,11 +28,12 @@ resource "aws_launch_configuration" "example" {
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.instance.id]
 
-  user_data = <<-EOF
-              #!/bin/bash
-              echo "Hello, world!" > index.html
-              nohup busybox httpd -f -p ${var.server_port} & 
-              EOF
+  # Render the user data script as a template
+  user_data = templatefile("user-data.sh", {
+    server_port = var.server_port
+    db_address  = data.terraform_remote_state.db.outputs.address
+    db_port     = data.terraform_remote_state.db.outputs.port
+  })
 
   # Required when using a launch configuration with an autoscaling group
   lifecycle {
@@ -57,7 +59,7 @@ resource "aws_autoscaling_group" "example" {
 }
 
 resource "aws_security_group" "instance" {
-  name = "terraform-example-instance"
+  name = var.instance_security_group_name
 
   ingress {
     from_port   = var.server_port
@@ -68,7 +70,7 @@ resource "aws_security_group" "instance" {
 }
 
 resource "aws_security_group" "alb" {
-  name = "terraform-example-alb"
+  name = var.alb_security_group_name
 
   # Allow inbound HTTP requests
   ingress {
@@ -88,7 +90,7 @@ resource "aws_security_group" "alb" {
 }
 
 resource "aws_lb" "example" {
-  name               = "terraform-asg-example"
+  name               = var.alb_name
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
   security_groups    = [aws_security_group.alb.id]
@@ -128,7 +130,7 @@ resource "aws_lb_listener_rule" "asg" {
 }
 
 resource "aws_lb_target_group" "asg" {
-  name     = "terraform-asg-example"
+  name     = var.alb_name
   port     = var.server_port
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
@@ -141,5 +143,15 @@ resource "aws_lb_target_group" "asg" {
     timeout             = 3
     healthy_threshold   = 2
     unhealthy_threshold = 2
+  }
+}
+
+data "terraform_remote_state" "db" {
+  backend = "s3"
+
+  config = {
+    bucket = var.db_remote_state_bucket
+    key    = var.db_remote_state_key
+    region = "us-east-2"
   }
 }
