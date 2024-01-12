@@ -1,24 +1,23 @@
+terraform {
+  required_version = ">= 1.0.0, < 2.0.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "4.54.0"
+    }
+  }
+}
+
 provider "aws" {
   region = "us-east-2"
 }
 
-# terraform {
-#   backend "s3" {
-#     bucket         = "casvil-terraform-up-and-running-state"
-#     key            = "stage/services/webserver-cluster/terraform.tfstate"
-#     region         = "us-east-2"
-#     dynamodb_table = "casvil-terraform-up-and-running-locks"
-#     encrypt        = true
-#   }
-# }
-
-
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "casvil-terraform-up-and-running-state"
+  bucket = var.bucket_name
 
   # Prevent accidental deletion of this S3 bucket
   lifecycle {
-    prevent_destroy = true
+    #prevent_destroy = true
   }
 }
 
@@ -52,7 +51,7 @@ resource "aws_s3_bucket_public_access_block" "public_access" {
 }
 
 resource "aws_dynamodb_table" "terraform_locks" {
-  name         = "casvil-terraform-up-and-running-locks"
+  name         = var.table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
 

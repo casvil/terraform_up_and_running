@@ -1,23 +1,20 @@
 terraform {
+  required_version = ">= 1.0.0, < 2.0.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "4.54.0"
     }
   }
-}
 
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+  backend "s3" {
+    bucket         = "casvil-file-isolation-terraform-up-and-running-state"
+    key            = "global/s3/terraform.tfstate"
+    region         = "us-east-2"
+    dynamodb_table = "casvil-file-isolation-terraform-up-and-running-locks"
+    encrypt        = true
   }
 }
-
 
 provider "aws" {
   region = "us-east-2"
@@ -153,5 +150,16 @@ data "terraform_remote_state" "db" {
     bucket = var.db_remote_state_bucket
     key    = var.db_remote_state_key
     region = "us-east-2"
+  }
+}
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
   }
 }
