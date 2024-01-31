@@ -1,5 +1,8 @@
+provider "aws" {
+  region = "us-east-2"
+}
+
 terraform {
-  required_version = ">= 1.0.0, < 2.0.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -8,20 +11,14 @@ terraform {
   }
 }
 
-provider "aws" {
-  region = "us-east-2"
-}
-
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = var.bucket_name
+  bucket = "casvil-example-terraform-state"
 
-  # Prevent accidental deletion of this S3 bucket
   lifecycle {
-    #prevent_destroy = true
+    prevent_destroy = true
   }
 }
 
-# Enable versioning so you can see the full revision history of your state files
 resource "aws_s3_bucket_versioning" "enabled" {
   bucket = aws_s3_bucket.terraform_state.id
 
@@ -30,7 +27,6 @@ resource "aws_s3_bucket_versioning" "enabled" {
   }
 }
 
-# Enable server-side encryption by default
 resource "aws_s3_bucket_server_side_encryption_configuration" "default" {
   bucket = aws_s3_bucket.terraform_state.id
 
@@ -41,7 +37,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "default" {
   }
 }
 
-# Explicitly block all public access to the S3 bucket
 resource "aws_s3_bucket_public_access_block" "public_access" {
   bucket                  = aws_s3_bucket.terraform_state.id
   block_public_acls       = true
@@ -51,7 +46,7 @@ resource "aws_s3_bucket_public_access_block" "public_access" {
 }
 
 resource "aws_dynamodb_table" "terraform_locks" {
-  name         = var.table_name
+  name         = "casvil-example-terraform-locks"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"
 
@@ -60,4 +55,5 @@ resource "aws_dynamodb_table" "terraform_locks" {
     type = "S"
   }
 }
+
 
